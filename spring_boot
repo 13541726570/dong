@@ -1,0 +1,99 @@
+1、PageResult类
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+public class PageResult<T> {
+
+    private int currentPage;
+    private int pageSize;
+
+    private int totalCount;
+    private List<T> data;
+
+    private int prevPage;
+    private int nextPage;
+    private int totalPage;
+
+    public PageResult(int currentPage, int pageSize, int totalCount, List<T> data) {
+        this.currentPage = currentPage;
+        this.pageSize = pageSize;
+        this.totalCount = totalCount;
+        this.data = data;
+
+        if (totalCount <= totalPage) {
+            this.prevPage = 1;
+            this.nextPage = 1;
+            this.totalPage = 1;
+            return;
+        }
+
+        this.totalPage = totalCount % pageSize == 0 ? totalCount / pageSize : totalCount / pageSize + 1;
+        this.prevPage = currentPage - 1 > 1 ? currentPage - 1 : 1;
+        this.nextPage = currentPage + 1 < totalPage ? currentPage + 1 : totalPage;
+    }
+}
+
+2、QueryObject
+import lombok.Data;
+
+@Data
+public class QueryObject {
+
+    private String keyword;
+    private int currentPage = 1;
+    private int pageSize = 5;
+
+    public int getStart() {
+        return (currentPage - 1) * pageSize;
+    }
+
+    public String getKeyword() {
+        return keyword;
+    }
+
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
+    }
+}
+
+3、业务层实现类实现接口中的方法
+ @Override
+    public PageResult<Employee> selectList(EmployeeQueryObject qo) {
+        int count = employeeMapper.selectForCount(qo);
+        if (count == 0) {
+            return new PageResult<Employee>(qo.getCurrentPage(), qo.getPageSize(), count, Collections.EMPTY_LIST);
+        }
+        List<Employee> employees = employeeMapper.selectForList(qo);
+        return new PageResult<Employee>(qo.getCurrentPage(), qo.getPageSize(), count, employees);
+    }
+    
+    4、列表页面（list.jsp）
+    
+    <script>
+        function goPage(currentPage) {
+            document.getElementById("currentPage").value = currentPage;
+            document.forms[0].submit();
+        }
+    </script>
+
+    <form action="/employee/list" method="post">
+        <input type="hidden" name="currentPage" id="currentPage" value="1"/>
+        关键字：<input size="4" type="text" name="keyword" value="${qo.keyword}"/>
+        部门：<select name="deptId">
+        <option value="-1">全部</option>
+        <c:forEach items="${departments}" var="department">
+            <option value="${department.id}" <c:if test="${department.id == qo.deptId}">selected</c:if> >
+                    ${department.name}
+            </option>
+        </c:forEach>
+    </select>
+ </form>
+ 
+ <a href="javascript:goPage(1);">首页</a>
+ <a href="javascript:goPage(${pageResult.prevPage});">上一页</a>
+ <a href="javascript:goPage(${pageResult.nextPage});">下一页</a>
+ <a href="javascript:goPage(${pageResult.totalPage});">尾页</a>
+ 当前:${pageResult.currentPage}/${pageResult.totalPage}
+ 总条数:${pageResult.totalCount}
